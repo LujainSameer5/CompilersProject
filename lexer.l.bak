@@ -1,0 +1,90 @@
+%option noyywrap
+
+%{
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#include "symtab.c"
+	
+	extern FILE *yyin;
+	extern FILE *yyout;
+	
+	int lineno = 1; // initialize to 1
+	void ret_print(char *token_type);
+	void yyerror();
+%}
+
+%x ML_COMMENT
+
+
+
+
+
+ID 			[a-zA-Z_]*
+digit	 		[0-9]+
+STR			["]([^"\\\n]|\\.|\\\n)*["]
+Bainary_INT		0[bB][0-1]*
+Octal_INT		0[oO][0-7]*
+HexaDecimal_INT		0[xX][0-9A-F]* 
+
+%%
+
+"{"[^}]*"}"		{ ret_print("Comment"); } 
+
+"and"|"if"|"else"|"while"|"do"|"begin"|"div"|"forward"|"for"|"function"|"array"|"mod"|"not"|"of"|"or"|"procedure"|"program"|"record"|"then"|"to"|"type"|"var"  { ret_print("KEYWORD"); }
+
+"<>"|"."|","|":"|";"|".."|"("|")"|"["|"]"|":="  {ret_print("SYS");}
+
+"+"|"-"|"*"|"/"  { ret_print("Arithmatic Operator");}
+
+"<="|">="|"<"|">"  {ret_print("Relational Operator");}
+
+["]([^"\\\n]|\\.|\\\n)*["] { ret_print("STR");}
+
+"="  {ret_print("Assignment Operator");}
+
+
+
+{ID} 			{
+	// insert identifier into symbol table
+	insert(yytext, strlen(yytext), UNDEF, lineno);
+	ret_print("ID");
+				}
+{digit} 		{ ret_print("digit"); }
+{Bainary_INT} 		{ ret_print("Bainary_INT"); }
+{Octal_INT} 		{ ret_print("Octal_INT"); }
+{HexaDecimal_INT} 	{ ret_print("HexaDecimal_INT"); }
+
+
+
+"\n"			{ lineno += 1; }
+[ \t\r\f]+			/* eat up whitespace */
+
+.				{ yyerror("Unrecognized character"); }
+
+%%
+
+void ret_print(char *token_type){
+	printf("yytext: %s\ttoken: %s\tlineno: %d\n", yytext, token_type, lineno);
+}
+
+void yyerror(char *message){
+	printf("Error: \"%s\" in line %d. Token = %s\n", message, lineno, yytext);
+	exit(1);
+}
+
+int main(int argc, char *argv[]){
+	// initialize symbol table
+	init_hash_table();
+
+	printf("Enter a string : ");	
+	yylex();
+	fclose(yyin);
+	
+	// symbol table dump
+	yyout = fopen("symtab_dump.out", "w");
+	symtab_dump(yyout);
+	fclose(yyout);	
+	
+	return 0;
+}
